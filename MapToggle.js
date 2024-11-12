@@ -171,7 +171,7 @@ export default function MapToggle({ navigation }) {
       }}>
           <Icon name="refresh" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Map</Text>
+        <Text style={styles.title}>MapTest</Text>
         <TouchableOpacity onPress={() => {
             playSound1(); // Play the sound
             navigation.navigate('Location', { timeEstimateQuad, timeEstimateCanteenB }); // Navigate to the 'Location' screen
