@@ -1,49 +1,87 @@
-import React, { useState, useEffect } from 'react';
+//MapToggle.js
+import React, {useState, useCallback, useEffect, useContext } from 'react';
+import { StatusBar } from 'expo-status-bar';
+import { scale, verticalScale} from 'react-native-size-matters';
 import Svg, { Rect, Path } from 'react-native-svg';
-import { View, Text, TouchableOpacity, Image, Button } from 'react-native';
+import { SafeAreaView, Platform, Dimensions, View, Text, TouchableOpacity, Image, Button, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import MapArea1 from './assets/MapArea1.svg';
 import MapArea2 from './assets/MapArea2.svg';
-import styles from './MapToggleStyle';
 import lionImage from './assets/lion.png';
+import { SoundContext } from './SoundContext';
+import { useTheme } from './ThemeContext';
+import { createStyles, chartConfig } from './style';
 
+
+// Constants for static images representing the lion icon for two locations
 const ssLion = lionImage;
 const quadLion = lionImage;
+const { width, height } = Dimensions.get('window'); // Get the screen dimensions
 
-// Custom SVG Component with Dynamic Color for Path
+// Custom Map Area 1 SVG Component with Dynamic Color for Path
 const CustomMapArea1 = ({ pathColor }) => (
-  <Svg width="250" height="250" viewBox="0 0 190 199" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <Rect width="190" height="199" fill="none" />
+  <Svg width="100%" height="100%" viewBox="0 0 190 199" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <Rect width="190" height="199" fill='none' />
     <Path
-      d="M86.9191 74.8925L0 98.4301L12.0809 199L190 149.785L159.798 0L82.9191 15.5134V74.8925Z"
+      d="M61.9191 74.8925L-21 98.4301L-8.91908 199L169 149.785L138.798 0L61.9191 15.5134V74.8925Z"
       fill={pathColor}
     />
   </Svg>
 );
 
-// Function to compare the time range in row[5]
-const isInPredefinedTimeRange = (timeRange) => {
-  // Let's assume the predefined time range is "17:00 to 19:00"
-  const predefinedTimeRange = '17:00 - 19:00';
+// Custom Map Area 2 SVG Component with Dynamic Color for Path
+const CustomMapArea2 = ({ pathColor2 }) => (
+  <Svg
+    width="150%" height="100%"
+    viewBox="0 0 490 326"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <Rect width="490" height="326" fill='none' />
+    <Path
+      d="M203.51 0L134.901 15.8673V56.7375L0 71.1622V115.398L134.901 106.263V226.95L27.351 250.029L51.457 315.422L189.603 281.764L237.351 326L343.51 299.555L381.06 115.398L469.603 88.472L445.96 15.8673L356.954 56.7375L343.51 0H293.907V189.445H237.351L203.51 0Z"
+      fill={pathColor2}
+    />
+    <Path
+      d="M104.305 134.631H66.755L42.649 212.525H104.305V134.631Z"
+      fill={pathColor2}
+    />
+    <Path
+      d="M469.603 115.398L397.748 134.631V237.528L490 212.525L469.603 115.398Z"
+      fill={pathColor2}
+    />
+  </Svg>
+);
 
-  return timeRange === predefinedTimeRange;
-};
+// Helper function to convert dateTime to epoch time for comparison
+const convertToEpoch = (dateTime) => new Date(dateTime).getTime();
 
-// Fetch data from Google Sheets and filter by today's date
-const fetchGoogleSheetData = async () => {
-  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+// Function to fetch data from Google Sheets and filter it by today's date and specified location
+const fetchGoogleSheetData = async (location) => {
   try {
     const response = await fetch(
-      'https://sheets.googleapis.com/v4/spreadsheets/1dBDgXQRbJYZQTPfNbU1qovM5s6QG_g4XJ_9z4hEB2n0/values/Sheet1!A1:F77?key=AIzaSyBp1JCXECERdbxhx3YeqpFQAd8mM1NLdpk'
+      'https://sheets.googleapis.com/v4/spreadsheets/1dBDgXQRbJYZQTPfNbU1qovM5s6QG_g4XJ_9z4hEB2n0/values/Sheet1!A1:F999?key=AIzaSyBp1JCXECERdbxhx3YeqpFQAd8mM1NLdpk'
     );
     const json = await response.json();
     if (json.values && json.values.length > 0) {
-      const rows = json.values.slice(1); // Skip the header row
+      const rows = json.values.slice(1); // Skip the header row for data rows only
 
-      // Filter by today's date
-      const filteredRows = rows.filter(row => row[3].split(' ')[0] === today); // Assuming date is in column 4
+      const today = new Date().toISOString().split('T')[0]; // Get today's date in "YYYY-MM-DD"
 
-      return filteredRows;
+      // Filter rows by today's date and location
+      const filteredRows = rows.filter(row => {
+        const [datePart] = row[3].split(' '); // Split the date and time
+        return datePart === today && row[2] === location; // Check if date matches today and location matches
+      });
+
+      // Sort the filtered rows by time (latest time first)
+      const sortedRowsByTime = filteredRows.sort((a, b) => {
+        const timeA = a[3].split(' ')[1]; // Extract the time part from Date Time
+        const timeB = b[3].split(' ')[1];
+        return timeB.localeCompare(timeA); // Sort by descending time (latest time first)
+      });
+
+      return sortedRowsByTime;
     } else {
       console.warn("No 'values' field in the response or empty range");
       return [];
@@ -54,58 +92,132 @@ const fetchGoogleSheetData = async () => {
   }
 };
 
+// Main component
 export default function MapToggle({ navigation }) {
-  const [pathColor, setPathColor] = useState("#95E9A4"); // Initial color for the path
+  const theme = useTheme();
+  const styles = createStyles(theme);
+
+  const { playSound1, playSound2 } = useContext(SoundContext);
+
+  // Initial states for path colors and estimated times for both map areas
+  const [pathColor, setPathColor] = useState("#95E9A4"); // Default color for the MapArea1
+  const [pathColor2, setPathColor2] = useState("#95E9A4"); // Default color for MapArea2
+  const [timeEstimateQuad, setTimeEstimateQuad] = useState("5 min"); // Initial time estimate for Quad Cafe
+  const [timeEstimateCanteenB, setTimeEstimateCanteenB] = useState("5 min"); // Initial time estimate for Canteen B
+
+    // Function to refresh the page by reloading the component
+  const handleRefresh = () => {
+    navigation.replace('MapToggle'); // Replace the current page with itself
+  };
 
   useEffect(() => {
+     // Function to fetch data for specific locations and update path colors and wait times based on data
     const fetchDataAndCheckTime = async () => {
-      const data = await fetchGoogleSheetData();
       
-      if (data.length > 0) {
-        // Check each row's time range (assuming it's in the last column, index 5)
-        data.forEach(row => {
-          const timeRange = row[5]; // Assuming time range is in the 6th column (index 5)
-          if (isInPredefinedTimeRange(timeRange)) {
-            setPathColor(pathColor =="#FF6347"); // Set path color to red if the time range matches
-          }
-        });
+      const location1 = 'South Spine Canteen'; 
+      const location2 = 'Quad Cafe';
+      
+      // Fetch and process data for South Spine Canteen
+      const data1 = await fetchGoogleSheetData(location1);
+      if (data1.length > 0) {
+        const latestRow1 = data1[0]; // Get the latest row for South Spine Canteen
+        const count1 = parseInt(latestRow1[1]); // Assuming row[1] holds the count
+  
+        // Apply color logic based on the count for South Spine Canteen
+        if (count1 <= 40) {
+          setPathColor2("#90EE90"); // Green for <= 40
+          setTimeEstimateCanteenB("5 min"); // Set to 5 min for green
+        } else if (count1 <= 100) {
+          setPathColor2("#FFA500"); // Orange for <= 100
+          setTimeEstimateCanteenB("10 min"); // Set to 10 min for orange
+        } else {
+          setPathColor2("#FF6347"); // Red for > 120
+          setTimeEstimateCanteenB("15 min"); // Set to 15 min for red
+        }
+      }
+  
+      // Fetch and process data for Quad Cafe
+      const data2 = await fetchGoogleSheetData(location2);
+      if (data2.length > 0) {
+        const latestRow2 = data2[0]; // Get the latest row for Quad Cafe
+        const count2 = parseInt(latestRow2[1]); // Assuming row[1] holds the count
+  
+        // Apply color logic based on the count for Quad Cafe
+        if (count2 <= 40) {
+          setPathColor("#90EE90"); // Green for <= 40
+          setTimeEstimateQuad("5 min");
+        } else if (count2 <= 120) {
+          setPathColor("#FFA500"); // Orange for <= 100
+          setTimeEstimateQuad("10 min");
+        } else {
+          setPathColor("#FF6347"); // Red for > 120
+          setTimeEstimateQuad("15 min");
+        }
       }
     };
-
-    fetchDataAndCheckTime();
-  }, []);
-
+  
+    fetchDataAndCheckTime(); // Fetch data once when component mounts
+  }, []); // Empty array means this runs once on mount
+  
+  //Display component
   return (
-    <View style={styles.container}>
+    <SafeAreaView style = {styles.safeArea}>
+      <StatusBar style={theme.background === '#1C3461' ? 'light' : 'dark'} />
+      <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
+      <TouchableOpacity onPress={() => {
+          playSound2(); // Play the sound
+          handleRefresh(); // Call the handleRefresh function
+      }}>
+          <Icon name="refresh" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Map</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Location')}>
-          <Icon name="swap-vert" size={24} color="#fff" />
+        <TouchableOpacity onPress={() => {
+            playSound1(); // Play the sound
+            navigation.navigate('Location', { timeEstimateQuad, timeEstimateCanteenB }); // Navigate to the 'Location' screen
+        }}>
+          <Icon name="swap-vert" size={24} color={theme.text}/>
         </TouchableOpacity>
       </View>
 
       <View style={styles.mapArea1}>
-        <CustomMapArea1 pathColor={pathColor} />
+  <CustomMapArea1 pathColor={pathColor}/>
+  {/* Wrapper container for image and text */}
+  <View style={styles.quadContainer}>
+  <TouchableOpacity onPress={() => {
+    playSound1(); // Play the sound
+    navigation.navigate('PopUpQuad'); // Navigate to the 'PopUpQuad' screen
+}}>
+      <Image source={quadLion} style={styles.quadLion} />
+    <Text style={styles.quadText}>Quad Cafe</Text>
+    </TouchableOpacity>
+  </View>
+</View>
 
-        <TouchableOpacity onPress={() => navigation.navigate('PopUpQuad')} style={{ position: 'absolute', top: -10, left: 0 }}>
-          <Image source={quadLion} style={styles.quadLion} />
-        </TouchableOpacity>
+<View style={styles.mapArea2}>
+  <CustomMapArea2 pathColor2={pathColor2}/>
 
-        <Text style={styles.quadText}>Quad Cafe</Text>
-      </View>
-
-      <View style={styles.mapArea2}>
-        <MapArea2 width={500} height={500} />
-        <TouchableOpacity onPress={() => navigation.navigate('PopUpSS')} style={{ position: 'absolute', top: -10, left: 0 }}>
-          <Image source={ssLion} style={styles.ssLion} />
-        </TouchableOpacity>
-        <Text style={styles.ffText}>Canteen B</Text>
-      </View>
+  {/* Wrapper container for image and text */}
+  <View style={styles.ssContainer}>
+  <TouchableOpacity onPress={() => {
+    playSound1(); // Play the sound
+    navigation.navigate('PopUpSS'); // Navigate to the 'PopUpQuad' screen
+}}>
+      <Image source={ssLion} style={styles.ssLion} />
+    
+    <Text style={styles.ssText}>Canteen B</Text>
+    </TouchableOpacity>
+  </View>
+</View>
 
       <View style={styles.legend}>
+        {/* Information Icon in the Top Right Corner */}
+        <TouchableOpacity style={styles.infoIcon} onPress={() => Alert.alert(
+      'Crowd Levels',
+      `🥦 Green - Peaceful vibes, plenty of seats!\n🍊 Orange - Getting lively, seats filling up!\n🍅 Red - Food fest! Expect a bustling crowd!`
+    )}>
+          <Icon name="info" size={24} color={theme.text} />
+        </TouchableOpacity>
         <View style={styles.legendItem}>
           <View style={[styles.legendColor, { backgroundColor: '#90EE90' }]} />
           <Text style={styles.legendText}>Low</Text>
@@ -120,9 +232,7 @@ export default function MapToggle({ navigation }) {
         </View>
       </View>
 
-      <View style={styles.buttonContainer}>
-        <Button title="Toggle Color" onPress={() => setPathColor(pathColor === "#95E9A4" ? "#FF6347" : "#95E9A4")} />
-      </View>
     </View>
+    </SafeAreaView>
   );
 }

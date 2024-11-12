@@ -1,28 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useEffect, useContext} from 'react';
+import { SafeAreaView, Platform, View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Dimensions  } from 'react-native';
 import { BarChart } from 'react-native-chart-kit';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { Dimensions } from 'react-native';
-import styles from './PopUpSsStyle';
+import { StatusBar } from 'expo-status-bar';
 import quadImage from './assets/quad.png';
+import { SoundContext } from './SoundContext'; 
+import { useTheme } from './ThemeContext';
+import { createStyles, createChartConfig } from './style';
 
-// Helper function to convert timeslot to 12-hour format
-const convertTimeslot = (timeslot) => {
-  const [start] = timeslot.split(' - '); // Extract the start time (e.g., "03:00")
-  const [hours, minutes] = start.split(':').map(Number); // Split hours and minutes
+// Helper function to convert a timeslot (e.g., "11:00 - 13:00") to 12-hour format (e.g., "11am")
+const convertTimeslotTo12Hour = (timeslot) => {
+  const [startTime] = timeslot.split(' - '); // Take the start time only (e.g., "11:00")
+  const [hours, minutes] = startTime.split(':').map(Number); // Split hours and minutes
 
-  // Convert to 12-hour format
+  // Convert to 12-hour format with 'am'/'pm'
   const period = hours >= 12 ? 'pm' : 'am';
   const convertedHours = hours % 12 === 0 ? 12 : hours % 12;
 
-  return `${convertedHours}${period}`; // Return formatted time (e.g., "3am", "11am", "1pm")
+  return `${convertedHours}${period}`; // Return formatted time (e.g., "11am")
 };
 
-// Fetch data from Google Sheets and filter by day
+// Convert 12-hour format time to 24-hour for sorting times in order
+const convertTo24HourForSort = (timeslot) => {
+  const period = timeslot.slice(-2); // Get 'am' or 'pm'
+  let hours = parseInt(timeslot.slice(0, -2), 10); // Extract the hour part
+
+  if (period === 'pm' && hours !== 12) hours += 12;
+  if (period === 'am' && hours === 12) hours = 0;
+
+  return hours;
+};
+
+// Function to fetch data from Google Sheets and filter by specific location
 const getSheetData = async (filterDay) => {
   try {
     const response = await fetch(
-      'https://sheets.googleapis.com/v4/spreadsheets/1dBDgXQRbJYZQTPfNbU1qovM5s6QG_g4XJ_9z4hEB2n0/values/Sheet1!A1:F100?key=AIzaSyBp1JCXECERdbxhx3YeqpFQAd8mM1NLdpk'
+      'https://sheets.googleapis.com/v4/spreadsheets/1dBDgXQRbJYZQTPfNbU1qovM5s6QG_g4XJ_9z4hEB2n0/values/Sheet1!A1:F999?key=AIzaSyBp1JCXECERdbxhx3YeqpFQAd8mM1NLdpk'
     );
     const json = await response.json();
 
@@ -30,15 +43,15 @@ const getSheetData = async (filterDay) => {
       const rows = json.values.slice(1); // Skip the header row
       const headers = json.values[0]; // First row as headers
 
-      // Filter rows based on the specified day (column E)
-      const filteredRows = rows.filter(row => row[4] === filterDay);
+      // Filter rows by day (e.g., "South Spine Canteen")
+      const filteredRows = rows.filter(row => row[2] === filterDay);
 
-      // Format the filtered data into an array of objects, with timeslot conversion
+      // Format the filtered data into an array of objects, converting timeslots to unique 12-hour format
       const formattedData = filteredRows.map(row => {
         const obj = {};
         headers.forEach((header, index) => {
           if (header === 'Timeslot') {
-            obj[header] = convertTimeslot(row[index]); // Convert the timeslot
+            obj[header] = convertTimeslotTo12Hour(row[index]); // Convert to 12-hour format and use start time only
           } else {
             obj[header] = header === 'Count' ? parseFloat(row[index]) : row[index];
           }
@@ -46,23 +59,26 @@ const getSheetData = async (filterDay) => {
         return obj;
       });
 
-      // Group data by Timeslot and calculate average Count
+      // Group data by unique Timeslot and calculate average Count for each unique timeslot
       const groupedData = formattedData.reduce((acc, row) => {
         if (!acc[row.Timeslot]) {
-          acc[row.Timeslot] = { Timeslot: row.Timeslot, Counts: [] };
+          acc[row.Timeslot] = { Timeslot: row.Timeslot, total: 0, count: 0 }; // Initialize accumulator
         }
-        acc[row.Timeslot].Counts.push(row.Count);
+        acc[row.Timeslot].total += row.Count; // Sum the counts
+        acc[row.Timeslot].count += 1; // Count occurrences
         return acc;
       }, {});
 
-      // Calculate the average count for each timeslot
-      const result = Object.values(groupedData).map(group => {
-        const total = group.Counts.reduce((sum, count) => sum + count, 0);
-        const avg = total / group.Counts.length;
-        return { Timeslot: group.Timeslot, AvgCount: avg };
-      });
+      // Calculate the average count for each unique timeslot
+      const result = Object.values(groupedData).map(group => ({
+        Timeslot: group.Timeslot,
+        AvgCount: group.total / group.count, // Average the count
+      }));
 
-      return result.map(row => [row.Timeslot, row.AvgCount]);
+      // Sort the results in chronological order based on 24-hour time (earliest to latest)
+      result.sort((a, b) => convertTo24HourForSort(a.Timeslot) - convertTo24HourForSort(b.Timeslot));
+
+      return result.map(row => [row.Timeslot, row.AvgCount]); // Return result as array of timeslots and average counts
     } else {
       console.warn("No 'values' field in the response or empty range");
       return [];
@@ -73,17 +89,24 @@ const getSheetData = async (filterDay) => {
   }
 };
 
-// PopUpQuad Component
-export default function PopUpQuad({ navigation }) {
-  const [popularTimesData, setPopularTimesData] = useState([]);
-  const [loading, setLoading] = useState(true);
+// Main component to display details about South Spine Canteen
+export default function PopUpSS({ navigation }) {
+    const theme = useTheme();
+    const styles = createStyles(theme);
+    const chartConfig = createChartConfig(theme);
+    const { playSound1, playSound2 } = useContext(SoundContext);
+
+    const [popularTimesData, setPopularTimesData] = useState({ labels: [], datasets: [{ data: [] }] });
+    const [loading, setLoading] = useState(true);
+    const [selectedBar, setSelectedBar] = useState(null); // Store selected bar data
+    const [showModal, setShowModal] = useState(false); // Show modal for counts
 
   // Fetch data from Google Sheets when the component mounts
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getSheetData('Wednesday'); // Specify the day to filter for
-        const times = data.map(row => row[0]); // Extract timeslot labels
+        const data = await getSheetData('South Spine Canteen'); // Specify the day to filter for
+        const times = data.map(row => row[0]); // Extract unique timeslot labels
         const percentages = data.map(row => parseInt(row[1], 10)); // Extract average counts
         setPopularTimesData({ labels: times, datasets: [{ data: percentages }] });
         setLoading(false);
@@ -96,103 +119,134 @@ export default function PopUpQuad({ navigation }) {
     fetchData();
   }, []);
 
+  const handlePressIn = (label, count) => {
+    setSelectedBar({ label, count }); // Show the statement when pressing down
+  };
+
+  const handlePressOut = () => {
+    setSelectedBar(null); // Clear the statement when releasing
+  };
+
+  const getAverageCountMessage = (count) => {
+    if (count < 40) {
+      return 'Quiet – easy to grab a bite!';
+    } else if (count >= 40 && count <= 120) {
+      return 'Buzzing – good vibes all around!';
+    } else {
+      return 'Jam-packed – feast frenzy time!';
+    }
+  };
+
+  // Define the chart width and calculate the width of each touchable area dynamically
+  const screenWidth = Dimensions.get('window').width;
+  const chartWidth = screenWidth - 60; // Adjust for padding/margin if necessary
+  const barWidth = (chartWidth / popularTimesData.labels.length) * 0.6; // Calculate the width of each bar
+
   return (
-    <ScrollView style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.navigate('MapToggle')}>
-          <Icon name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Information</Text>
-      </View>
-
-      {/* Popular Times Section */}
-      <View style={styles.sectionContainer}>
-  <View style={styles.sectionHeader}>
-    <Text style={styles.sectionTitle}>Popular Times at Canteen B</Text>
-    <TouchableOpacity
-      style={styles.viewMenuButton}
-      onPress={() => {
-        // Handle "View Menu" button press (navigate to menu screen or perform action)
-        navigation.navigate('SSMenuScreen'); // Example navigation, change as necessary
-      }}
-    >
-      <Text style={styles.viewMenuButtonText}>View Menu</Text>
-    </TouchableOpacity>
-  </View>
-  <View style={styles.chartContainer}>
-    {loading ? (
-      <ActivityIndicator size="medium" color="#0000ff" />
-    ) : (
-      <BarChart
-  data={popularTimesData}
-  width={Dimensions.get('window').width + 60} // Reduce width slightly for more centering
-  height={220}
-  withHorizontalLabels={false}
-  fromZero={true} // Start the chart from zero for better scaling
-  showBarTops={true} // Show rounded bar tops
-  chartConfig={{
-    backgroundColor: '#1D3F73', // Set solid background color here
-    backgroundGradientFrom: '#1D3F73', // Gradient starts with the same background color
-    backgroundGradientTo: '#1D3F73', // Gradient ends with the same background color
-    fillShadowGradient: '#E2EAFC', // Light blue color for bars
-    fillShadowGradientOpacity: 1, // Fully opaque bars
-    decimalPlaces: 0, // No decimal points in the values
-    barPercentage: 0.6, // Decrease bar width for more space between bars
-    color: (opacity = 1) => `rgba(173, 216, 230, ${opacity})`, // Light blue bars with opacity
-    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // White labels
-    style: {
-      borderRadius: 20, // Rounded corners for the chart container
-    },
-    propsForBackgroundLines: {
-      strokeWidth: 1, // Thinner grid lines
-      stroke: '#e0e0e0', // Light gray for grid lines
-      dashArray: [5, 5], // Dashed grid lines
-    },
-    propsForLabels: {
-      fontSize: 12, // Small font size for labels
-    },
-    propsForBars: {
-      borderRadius: 20, // Rounded corners for bars
-    },
-  }}
-  style={{
-    alignSelf: 'center', // Centralize the chart within the container
-    marginRight: 40, // Reset marginRight if it's set
-    //borderRadius: 16, // Rounded edges for the entire chart container
-  }}
-/>
-
-
-
-    )}
-  </View>
-</View>
-
-      {/* Opening Hours Section */}
-      <View style={styles.openingHoursContainer}>
-        <Text style={styles.sectionTitle}>Opening Hours</Text>
-        <View style={styles.openingHoursBox}>
-          <Text style={styles.openingHoursText}>Mon to Fri: 7am to 8pm</Text>
-          <Text style={styles.openingHoursText}>Sat: 7am to 2pm</Text>
-          <Text style={styles.openingHoursText}>Sun & PH: Closed</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style={theme.background === '#1C3461' ? 'light' : 'dark'} />
+      <ScrollView style={styles.container}>
+        {/* Header Section */}
+        <View style={styles.header}>
+        <TouchableOpacity
+                  onPress={() => {
+                      playSound2(); // Play the sound
+                      navigation.goBack(); // Navigate back
+                  }}
+              >
+            <Icon name="arrow-back" size={24} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Information</Text>
         </View>
-      </View>
 
-      {/* Suggested Locations Section */}
-      <View style={styles.sectionContainer}>
-        <Text style={styles.sectionTitle}>Nearby Locations</Text>
-        <View style={styles.suggestedLocationsContainer}>
-          <Image
-            source={quadImage}
-            style={styles.locationImage}
-          />
-          <View style={styles.locationInfo}>
-            <Text style={styles.locationTitle}>Quad Cafe - SBS</Text>
-            <Text style={styles.locationDescription}>220m from Canteen B</Text>
+        {/* Popular Times Section */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Times at Canteen B</Text>
+            <TouchableOpacity
+                style={styles.viewMenuButton}
+                onPress={() => {
+                    playSound1(); // Play the sound
+                    navigation.navigate('SSMenuScreen'); // Navigate to 'QuadMenuScreen'
+                }}
+                >
+              <Text style={styles.viewMenuButtonText}>View Menu</Text>
+            </TouchableOpacity>
+          </View>
+          {/* Display selected bar info above the chart */}
+        {selectedBar && (
+        <View style={styles.selectedBarInfoContainer}>
+          <Text style={styles.selectedBarInfoText}>
+          {`${selectedBar.label}, ${selectedBar.count} people - ${getAverageCountMessage(selectedBar.count)}`}
+          </Text>
+        </View>
+         )}
+          <View style={styles.chartContainer}>
+            {loading ? (
+              <ActivityIndicator size="medium" color="#0000ff" />
+            ) : (
+              <>
+                <BarChart
+                  data={popularTimesData}
+                  width={Dimensions.get('window').width + 60}
+                    height={220}
+                  fromZero={true}
+                  withHorizontalLabels={false} // Hide y-axis counts
+                  chartConfig={chartConfig}
+                  style={styles.chartStyle} // Apply chartStyle for specific chart styling
+                />
+                
+                {/* Overlay touchable areas for each bar */}
+                {!loading && popularTimesData.labels.length > 0 && (
+                  <View style={{ position: 'absolute', top: 0, left: 30, width: chartWidth, height: 220, flexDirection: 'row' }}>
+                    {popularTimesData.labels.map((label, index) => (  
+                      <TouchableOpacity
+                        key={index}
+                        onPressIn={() => handlePressIn(label, popularTimesData.datasets[0].data[index])}
+                        onPressOut={handlePressOut}
+                        style={{ 
+                          width: barWidth, 
+                          height: 200,
+                          marginRight: 15,
+                          right: 30,
+                          marginHorizontal: (chartWidth / popularTimesData.labels.length - barWidth) / 2,
+                        }}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
           </View>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Opening Hours Section */}
+        <View style={styles.openingHoursContainer}>
+          <Text style={styles.sectionTitle}>Opening Hours</Text>
+          <View style={styles.openingHoursBox}>
+            <Text style={styles.openingHoursText}>Mon to Fri: 7am to 8pm</Text>
+            <Text style={styles.openingHoursText}>Sat: 7am to 2pm</Text>
+            <Text style={styles.openingHoursText}>Sun & PH: Closed</Text>
+          </View>
+        </View>
+
+        {/* Suggested Locations Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Nearby Locations</Text>
+          <TouchableOpacity onPress={() => {
+                  playSound1(); // Play the sound
+                  navigation.navigate('PopUpQuad'); 
+              }}>
+            <View style={styles.suggestedLocationsContainer}>
+              <Image source={quadImage} style={styles.locationImage} />
+              <View style={styles.locationInfo}>
+                <Text style={styles.locationTitle}>Quad Cafe - SBS</Text>
+                <Text style={styles.locationDescription}>220m from Canteen B</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

@@ -1,27 +1,37 @@
 {
   "expo": {
-    "name": "crowdmobile",
+    "name": "ntubitez",
     "slug": "crowdmobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/bitez.png",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "image": "./assets/bitez.png",
+      "resizeMode": "contain"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ntu.im3180.ie07.ntubitez"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/bitez.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.ntu.ie07.ntubitez"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "8f47c31d-11a4-4e60-b93a-6a21861d7816"
+      }
+    },
+    "owner": "ntu.im3180.24s1.ie07",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
