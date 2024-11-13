@@ -124,11 +124,11 @@ export default function MapToggle({ navigation }) {
         const count1 = parseInt(latestRow1[1]); // Assuming row[1] holds the count
   
         // Apply color logic based on the count for South Spine Canteen
-        if (count1 <= 40) {
-          setPathColor2("#90EE90"); // Green for <= 40
+        if (count1 <= 80) {
+          setPathColor2("#90EE90"); // Green for <= 60
           setTimeEstimateCanteenB("5 min"); // Set to 5 min for green
-        } else if (count1 <= 100) {
-          setPathColor2("#FFA500"); // Orange for <= 100
+        } else if (count1 <= 160) {
+          setPathColor2("#FFA500"); // Orange for <= 160
           setTimeEstimateCanteenB("10 min"); // Set to 10 min for orange
         } else {
           setPathColor2("#FF6347"); // Red for > 120
@@ -146,8 +146,8 @@ export default function MapToggle({ navigation }) {
         if (count2 <= 40) {
           setPathColor("#90EE90"); // Green for <= 40
           setTimeEstimateQuad("5 min");
-        } else if (count2 <= 120) {
-          setPathColor("#FFA500"); // Orange for <= 100
+        } else if (count2 <= 80) {
+          setPathColor("#FFA500"); // Orange for <= 80
           setTimeEstimateQuad("10 min");
         } else {
           setPathColor("#FF6347"); // Red for > 120
@@ -171,7 +171,7 @@ export default function MapToggle({ navigation }) {
       }}>
           <Icon name="refresh" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>MapTest</Text>
+        <Text style={styles.title}>Map</Text>
         <TouchableOpacity onPress={() => {
             playSound1(); // Play the sound
             navigation.navigate('Location', { timeEstimateQuad, timeEstimateCanteenB }); // Navigate to the 'Location' screen

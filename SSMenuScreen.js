@@ -16,7 +16,7 @@ import beveragesImage from './assets/beverages.png';
 import chickenRiceImage from './assets/chicken_rice.jpg'; 
 
 //Menu Items Images
-import beverageImage from './assets/beverages.jpg';
+import beverageImage from './assets/beverage.jpg';
 import braised_duck_riceImage from './assets/braised_duck_rice.jpg';
 import chicha_san_chenImage from './assets/chicha_san_chen.jpg';
 import dim_sumImage from './assets/dim_sum.jpg';

@@ -88,8 +88,8 @@ const createChartConfig = (theme) => ({
   // Quad and South Spine Canteen styles
   quadContainer: {
     position: 'absolute',
-    top: verticalScale(100),
-    left: scale(80),
+    top: verticalScale(110),
+    left: scale(85),
     alignItems: 'center',
     zIndex: 2,
   },
@@ -190,7 +190,7 @@ const createChartConfig = (theme) => ({
   },
   image: {
     width: 100,
-    height: 130,
+    height: 150,
   },
   infoContainer: {
     flex: 1,
@@ -326,7 +326,7 @@ const createChartConfig = (theme) => ({
     flex: 1, // Take remaining space
   },
   locationTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: 'Inter-Bold',
     color: '#000', // White text for location title
   },

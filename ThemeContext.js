@@ -29,7 +29,7 @@ const lightTheme = {
     borderWidth: 1,
     borderColor: '#D3D3D3',
     chartFillShadow: '#1C3461',
-    backgroundLine: '#e0e0e0',
+    backgroundLine: '#d3d3d3',
     buttonColor: '#1C3461',
     buttonText: '#fff',
     categoryColor: '#1C3461',

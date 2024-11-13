@@ -26,21 +26,22 @@ export default function Location({ navigation, route }) {
   const [canteens, setCanteens] = useState([
     {
       id: '1',
+      name: 'Quad Canteen - SBS',
+      description: '60 Nanyang Drive, The Quad Cafe, School of Biological Sciences, Level B1, 637551',
+      image: quadImage,
+      openingTime: '0730',  // 7:30 AM
+      closingTime: '2100',  // 9:00 PM
+      timeEstimate: timeEstimateQuad, // Use Quad Cafe time estimate
+      
+    },
+    {
+      id: '2',
       name: 'Canteen B - South Spine',
       description: 'Fine Food @ South Spine, 50 Nanyang Avenue, SS3-B4, Singapore 639798',
       image: ssImage,
       openingTime: '0730',  // 7:30 AM
       closingTime: '2100',  // 9:00 PM
       timeEstimate: timeEstimateCanteenB, // Use Canteen B time estimate
-    },
-    {
-      id: '2',
-      name: 'Quad Cafe - SBS',
-      description: '60 Nanyang Drive, The Quad Cafe, School of Biological Sciences, Level B1, 637551',
-      image: quadImage,
-      openingTime: '0730',  // 7:30 AM
-      closingTime: '2100',  // 9:00 PM
-      timeEstimate: timeEstimateQuad, // Use Quad Cafe time estimate
     },
   ]);
 

@@ -93,11 +93,11 @@ const convertTo24HourForSort = (timeslot) => {
   
     const getAverageCountMessage = (count) => {
       if (count < 40) {
-        return 'Quiet – easy to grab a bite!';
+        return 'Relaxed – Easy to grab a seat!';
       } else if (count >= 40 && count <= 120) {
-        return 'Buzzing – good vibes all around!';
+        return 'Buzzing - Getting Crowded!';
       } else {
-        return 'Jam-packed – feast frenzy time!';
+        return 'Jam-packed!';
       }
     };
 
@@ -213,7 +213,7 @@ const convertTo24HourForSort = (timeslot) => {
                           width: barWidth, 
                           height: 200,
                           marginRight: 15,
-                          right: 30,
+                          right: 27.5,
                           marginHorizontal: (chartWidth / popularTimesData.labels.length - barWidth) / 2,
                         }}
                       />

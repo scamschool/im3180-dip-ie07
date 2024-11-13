@@ -128,12 +128,12 @@ export default function PopUpSS({ navigation }) {
   };
 
   const getAverageCountMessage = (count) => {
-    if (count < 40) {
-      return 'Quiet – easy to grab a bite!';
-    } else if (count >= 40 && count <= 120) {
-      return 'Buzzing – good vibes all around!';
+    if (count <= 80) {
+      return 'Relaxed – Easy to grab a seat!';
+    } else if (count >= 80 && count <= 160) {
+      return 'Buzzing – Getting Crowded!';
     } else {
-      return 'Jam-packed – feast frenzy time!';
+      return 'Jam-packed!';
     }
   };
 
@@ -208,7 +208,7 @@ export default function PopUpSS({ navigation }) {
                           width: barWidth, 
                           height: 200,
                           marginRight: 15,
-                          right: 30,
+                          right: 27.5,
                           marginHorizontal: (chartWidth / popularTimesData.labels.length - barWidth) / 2,
                         }}
                       />
@@ -240,7 +240,7 @@ export default function PopUpSS({ navigation }) {
             <View style={styles.suggestedLocationsContainer}>
               <Image source={quadImage} style={styles.locationImage} />
               <View style={styles.locationInfo}>
-                <Text style={styles.locationTitle}>Quad Cafe - SBS</Text>
+                <Text style={styles.locationTitle}>Quad Canteen - SBS</Text>
                 <Text style={styles.locationDescription}>220m from Canteen B</Text>
               </View>
             </View>
