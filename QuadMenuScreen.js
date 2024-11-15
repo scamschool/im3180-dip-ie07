@@ -95,11 +95,11 @@ const QuadMenuScreen = ({ navigation }) => {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Icon name="search" size={20} color="#000" style={styles.searchIcon} />
+        <Icon name="search" size={20} color="#aaa" style={styles.searchIcon} />
         <TextInput
           style={styles.searchBar}
           placeholder="Search"
-          placeholderTextColor="#000"
+          placeholderTextColor="#aaa"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
