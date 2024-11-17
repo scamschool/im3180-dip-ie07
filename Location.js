@@ -78,9 +78,9 @@ export default function Location({ navigation, route }) {
   // Handle navigation to specific pop-up screens based on canteen ID
   const handleNavigation = (canteenId) => {
     if (canteenId === '1') {
-      navigation.navigate('PopUpSS'); // Navigate to PopUpSS.js for Canteen B
+      navigation.navigate('PopUpQuad'); // Navigate to PopUpQuad.js for Canteen B
     } else if (canteenId === '2') {
-      navigation.navigate('PopUpQuad'); // Navigate to PopUpQuad.js for Quad Cafe
+      navigation.navigate('PopUpSS'); // Navigate to PopUpSS.js for Quad Cafe
     }
   };
 
