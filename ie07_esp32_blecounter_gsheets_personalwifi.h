@@ -25,7 +25,7 @@ const char spreadsheetId[] = "1dBDgXQRbJYZQTPfNbU1qovM5s6QG_g4XJ_9z4hEB2n0";
 
 // Timer variables
 unsigned long lastTime = 0;  
-unsigned long timerDelay = 600000;  // 10 minutes delay
+unsigned long timerDelay = 300000;  // 5 minutes delay, so will scan twice in 10 minutes to prevent values not ready at 10 minute mark for upload
 
 // BLE scan variables
 BLEScan* pBLEScan;
